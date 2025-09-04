@@ -12,28 +12,6 @@ SET search_path TO ejer1aticlase4, public;
 
 -- ===== A PARTIR DE AQUÍ VA TU CÓDIGO EXISTENTE =====
 
--- Ya no necesitas el prefijo 'ejer1aticlase4.' porque establecimos el search_path
-create type parking_space_type_enum as enum ('carro', 'moto', 'bicicleta', 'discapacitado');
-
--- alter type parking_space_type_enum owner to acelerati; -- Esto ya no es necesario si el usuario 'acelerati' ejecuta el script
-
-create type tenant_type_enum as enum ('familiar', 'externo', 'vecino');
-
-create table owner
-(
-    id        uuid default gen_random_uuid() not null
-        constraint owner_pk
-            primary key,
-    full_name varchar                        not null,
-    document  varchar                        not null
-        constraint owner_unique_document
-            unique
-);
-
--- ... y así con el resto de tus tablas y tipos.
--- Te recomiendo quitar los prefijos 'ejer1aticlase4.' y los 'alter table ... owner to acelerati'
--- si el mismo usuario 'acelerati' es el que ejecuta este script.
-
 create type parking_space_type_enum as enum ('carro', 'moto', 'bicicleta', 'discapacitado');
 
 create type tenant_type_enum as enum ('familiar', 'externo', 'vecino');
