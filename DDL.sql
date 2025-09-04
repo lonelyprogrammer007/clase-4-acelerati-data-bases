@@ -1,10 +1,23 @@
+BEGIN; -- Inicia la transacción
+
+-- Crea el esquema si no existe
+CREATE SCHEMA IF NOT EXISTS ejer1aticlase4;
+
+-- Asigna permisos totales sobre este esquema al usuario
+GRANT ALL ON SCHEMA ejer1aticlase4 TO acelerati;
+
+-- Establece el orden de búsqueda de esquemas para la sesión actual.
+-- Esto hace que no tengas que escribir 'ejer1aticlase4.' en cada objeto.
+SET search_path TO ejer1aticlase4, public;
+
+-- ===== A PARTIR DE AQUÍ VA TU CÓDIGO EXISTENTE =====
+
+-- Ya no necesitas el prefijo 'ejer1aticlase4.' porque establecimos el search_path
 create type parking_space_type_enum as enum ('carro', 'moto', 'bicicleta', 'discapacitado');
 
-alter type parking_space_type_enum owner to postgres;
+-- alter type parking_space_type_enum owner to acelerati; -- Esto ya no es necesario si el usuario 'acelerati' ejecuta el script
 
 create type tenant_type_enum as enum ('familiar', 'externo', 'vecino');
-
-alter type tenant_type_enum owner to postgres;
 
 create table owner
 (
@@ -17,8 +30,24 @@ create table owner
             unique
 );
 
-alter table owner
-    owner to postgres;
+-- ... y así con el resto de tus tablas y tipos.
+-- Te recomiendo quitar los prefijos 'ejer1aticlase4.' y los 'alter table ... owner to acelerati'
+-- si el mismo usuario 'acelerati' es el que ejecuta este script.
+
+create type parking_space_type_enum as enum ('carro', 'moto', 'bicicleta', 'discapacitado');
+
+create type tenant_type_enum as enum ('familiar', 'externo', 'vecino');
+
+create table owner
+(
+    id        uuid default gen_random_uuid() not null
+        constraint owner_pk
+            primary key,
+    full_name varchar                        not null,
+    document  varchar                        not null
+        constraint owner_unique_document
+            unique
+);
 
 create table parking_space
 (
@@ -28,7 +57,7 @@ create table parking_space
     number           integer                                                                                        not null
         constraint parking_space_unique_number
             unique,
-    type             ejer1aticlase4.parking_space_type_enum default 'carro'::ejer1aticlase4.parking_space_type_enum not null,
+    type             parking_space_type_enum default 'carro'::parking_space_type_enum not null,
     ubication_floor  varchar                                default '-1'::character varying                         not null,
     ubication_number varchar                                default '-1'::character varying                         not null,
     owner_id         uuid                                                                                           not null
@@ -47,15 +76,12 @@ comment on column parking_space.type is 'carro o moto';
 
 comment on constraint parking_space_unique_ubication on parking_space is 'no pueden existir en el mismo piso dos ubicaciones repetidas';
 
-alter table parking_space
-    owner to postgres;
-
 create table tenant
 (
     id        uuid                            default gen_random_uuid()                          not null
         constraint tenant_pk
             primary key,
-    type      ejer1aticlase4.tenant_type_enum default 'externo'::ejer1aticlase4.tenant_type_enum not null,
+    type      tenant_type_enum default 'externo'::tenant_type_enum not null,
     full_name varchar                         default 'N/A'::character varying                   not null,
     document  varchar                         default '1'::character varying                     not null
         constraint tenant_unique_document
@@ -63,9 +89,6 @@ create table tenant
 );
 
 comment on table tenant is 'para guardar el arrendatario';
-
-alter table tenant
-    owner to postgres;
 
 create table lease
 (
@@ -86,14 +109,11 @@ create table lease
     tenant_full_name_record               varchar                                not null,
     parking_space_ubication_number_record varchar                                not null,
     parking_space_ubication_floor_record  varchar                                not null,
-    parking_space_type_record             ejer1aticlase4.parking_space_type_enum not null,
-    tenant_type                           ejer1aticlase4.tenant_type_enum        not null
+    parking_space_type_record             parking_space_type_enum not null,
+    tenant_type                           tenant_type_enum        not null
 );
 
 comment on table lease is 'permite almacenar lo arrendaientos e la bd';
-
-alter table lease
-    owner to postgres;
 
 create table contact_info
 (
@@ -101,15 +121,11 @@ create table contact_info
         constraint contact_info_pk
             primary key,
     detail      varchar                        not null,
-    column_name integer,
     owner_id    uuid                           not null
         constraint contact_info_owner_id_fk
             references owner
             on delete cascade
 );
-
-alter table contact_info
-    owner to postgres;
 
 create function f_save_lease_history_data() returns trigger
     language plpgsql
@@ -130,5 +146,12 @@ BEGIN
 END;
 $$;
 
-alter function f_save_lease_history_data() owner to postgres;
+-- auto-generated definition
+create trigger trg_save_lease_data_record
+    before insert or update
+    on lease
+    for each row
+execute procedure f_save_lease_history_data();
+
+COMMIT; -- Confirma la transacción SOLO si todo fue exitoso
 

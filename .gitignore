@@ -1,6 +1,6 @@
 # IDE specific files
+.idea
 .idea/
-
 # OS generated files
 .DS_Store
 .DS_Store?

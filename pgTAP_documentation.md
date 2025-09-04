@@ -56,7 +56,7 @@ To run `pgTAP` tests, you typically use the `pg_prove` command-line utility. Her
 pg_prove -d your_database_name -U your_username -f my_tests.sql
 ```
 
-- `-d`: The name of your database.
+- `-d`: The name of your database..
 - `-U`: The username to connect with.
 - `-f`: The test file to run.
 
@@ -73,3 +73,36 @@ CREATE EXTENSION pgtap;
 ```
 
 This documentation should give you a good starting point. Now, I will create a set of tests for your project using these principles.
+
+## Example Tests for This Project
+
+Here are some example tests that you could write for this project in `database_tests.sql`. These tests are based on the file names and common database structures.
+
+```sql
+-- Start the test session
+BEGIN;
+
+-- Plan the number of tests
+SELECT plan(8);
+
+-- Check for custom types
+SELECT has_type('tenant_type');
+SELECT has_type('parking_space_type');
+
+-- Check for tables (assuming table names from file names)
+SELECT has_table('lease');
+SELECT has_table('tenant');
+SELECT has_table('parking_space');
+
+-- Check for columns in the 'lease' table
+SELECT has_column('lease', 'created_at');
+SELECT has_column('lease', 'updated_at');
+
+-- Check the trigger function
+SELECT has_function('save_lease_data_record');
+
+
+-- Finish the test session
+SELECT * FROM finish();
+ROLLBACK;
+```
