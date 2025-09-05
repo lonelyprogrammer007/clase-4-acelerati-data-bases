@@ -41,8 +41,8 @@ SET search_path TO :schema_name, public;
 -- --- PLAN DE PRUEBAS ---
 -- Declara el número total de pruebas que se ejecutarán.
 -- Es crucial que este número sea exacto.
--- Total: 24 pruebas (22 originales + 1 de auditoría + 1 corregida)
-SELECT plan(24);
+-- Total: 25 pruebas (22 originales + 1 de auditoría + 1 corregida)
+SELECT plan(25);
 
 
 -- --- SECCIÓN 1: PRUEBAS DE ESTRUCTURA (EXISTENCIA DE OBJETOS) ---
