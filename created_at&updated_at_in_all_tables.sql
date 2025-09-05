@@ -12,22 +12,19 @@ SET search_path TO ejer1aticlase4, public;
 
 -- =====================================================================
 -- Script para añadir campos de auditoría (created_at, updated_at)
--- a todas las tablas de un esquema específico en PostgreSQL.
+-- v3: Usa clock_timestamp() para mayor precisión en la auditoría.
 -- =====================================================================
 
 -- PASO 1: Crear la función reutilizable para el trigger de actualización.
--- Esta función se ejecutará cada vez que una fila sea actualizada.
+-- USA CLOCK_TIMESTAMP() en lugar de NOW() para reflejar la hora real de la
+-- modificación, no la hora de inicio de la transacción.
 CREATE OR REPLACE FUNCTION actualizar_fecha_modificacion()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- NEW es una variable especial en los triggers que contiene la nueva
-    -- versión de la fila que está siendo modificada.
-    NEW.updated_at = NOW();
+    NEW.updated_at = clock_timestamp();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
--- =====================================================================
 
 -- PASO 2: Bloque anónimo para iterar sobre las tablas y aplicar los cambios.
 DO $$
@@ -36,33 +33,23 @@ DECLARE
     nombre_esquema TEXT := 'ejer1aticlase4';
     nombre_tabla   RECORD;
 BEGIN
-    -- Este bucle FOR itera sobre cada tabla encontrada en el esquema especificado.
-    -- Se excluyen las vistas (is_insertable_into = 'YES').
     FOR nombre_tabla IN
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = nombre_esquema AND is_insertable_into = 'YES'
     LOOP
-        -- Imprime un mensaje para saber qué tabla se está procesando.
         RAISE NOTICE 'Configurando tabla: %.%', nombre_esquema, nombre_tabla.table_name;
 
-        -- Añade la columna 'created_at' si no existe.
-        -- Se establece con un valor por defecto para que las filas existentes
-        -- y las nuevas inserciones obtengan la fecha y hora actual.
+        -- Se cambia el DEFAULT a clock_timestamp() para consistencia.
         EXECUTE format(
-            'ALTER TABLE %I.%I ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()',
+            'ALTER TABLE %I.%I ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()',
+            nombre_esquema, nombre_tabla.table_name
+        );
+        EXECUTE format(
+            'ALTER TABLE %I.%I ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()',
             nombre_esquema, nombre_tabla.table_name
         );
 
-        -- Añade la columna 'updated_at' si no existe.
-        -- También se le pone un valor por defecto para las filas existentes.
-        EXECUTE format(
-            'ALTER TABLE %I.%I ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()',
-            nombre_esquema, nombre_tabla.table_name
-        );
-
-        -- Crea el trigger para actualizar 'updated_at' en cada UPDATE.
-        -- Primero se elimina por si ya existía, para hacer el script re-ejecutable.
         EXECUTE format(
             'DROP TRIGGER IF EXISTS trigger_actualizar_fecha_modificacion ON %I.%I',
             nombre_esquema, nombre_tabla.table_name
@@ -79,4 +66,4 @@ BEGIN
     RAISE NOTICE '¡Proceso completado para el esquema %!', nombre_esquema;
 END $$;
 
-COMMIT; -- Confirma la transacción SOLO si todo fue exitoso
+COMMIT; -- Confirma la transacción

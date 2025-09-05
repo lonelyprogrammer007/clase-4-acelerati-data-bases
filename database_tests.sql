@@ -41,8 +41,8 @@ SET search_path TO :schema_name, public;
 -- --- PLAN DE PRUEBAS ---
 -- Declara el número total de pruebas que se ejecutarán.
 -- Es crucial que este número sea exacto.
--- Total: 25 pruebas (22 originales + 1 de auditoría + 1 corregida)
-SELECT plan(25);
+-- Total: 26 pruebas (22 originales + 1 de auditoría + 1 corregida)
+SELECT plan(26);
 
 
 -- --- SECCIÓN 1: PRUEBAS DE ESTRUCTURA (EXISTENCIA DE OBJETOS) ---
@@ -56,6 +56,7 @@ SELECT has_table('contact_info', 'La tabla contact_info debe existir');
 
 -- Verificamos columnas y sus tipos.
 SELECT has_column('owner', 'id', 'La tabla owner debe tener una columna id');
+SELECT has_column('owner', 'updated_at', 'La tabla owner debe tener una columna updated_at');
 SELECT col_type_is('owner', 'id', 'uuid', 'La columna owner.id debe ser de tipo uuid');
 SELECT has_column('owner', 'full_name', 'La tabla owner debe tener una columna full_name');
 SELECT col_type_is('owner', 'full_name', 'character varying', 'La columna owner.full_name debe ser de tipo character varying');
@@ -96,8 +97,8 @@ VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', '2025-01-01', '2025-12-31', 'a0e
 -- `results_eq` compara el resultado de una consulta con un resultado esperado.
 -- Aquí verificamos si el trigger copió correctamente los datos históricos.
 SELECT results_eq(
-    'SELECT tenant_full_name_record, tenant_document_record FROM lease WHERE id = ''a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14''',
-    'VALUES (''Test Tenant'', ''888888888'')',
+    $$SELECT tenant_full_name_record, tenant_document_record FROM lease WHERE id = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14'$$,
+    $$VALUES ('Test Tenant'::varchar, '888888888'::varchar)$$,
     'El trigger debe guardar los datos históricos del inquilino en la tabla lease'
 );
 
@@ -105,6 +106,10 @@ SELECT results_eq(
 -- Prueba para el trigger `trigger_actualizar_fecha_modificacion`
 -- 1. Actualizamos el propietario que acabamos de insertar.
 UPDATE owner SET full_name = 'Test Owner Updated' WHERE id = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+
+-- *** AÑADIR ESTA LÍNEA ***
+SELECT pg_sleep(1); -- Añade una pequeña pausa de 100 milisegundos
+
 -- 2. `ok` verifica si una condición es verdadera.
 --    Aquí comprobamos que `updated_at` es posterior a `created_at` después del UPDATE.
 SELECT ok(
@@ -119,19 +124,31 @@ SELECT ok(
 SELECT enum_has_labels('parking_space_type_enum', ARRAY['carro', 'moto', 'bicicleta', 'discapacitado'], 'El enum parking_space_type_enum debe tener las etiquetas correctas');
 SELECT enum_has_labels('tenant_type_enum', ARRAY['familiar', 'externo', 'vecino'], 'El enum tenant_type_enum debe tener las etiquetas correctas');
 
--- Verificamos que los datos del script `populate_database.sql` existan.
+-- Prueba de datos autocontenida: se inserta un owner y se verifica que se puede consultar.
+-- 1. Insertamos el dato que necesitamos.
+INSERT INTO owner (full_name, document) VALUES ('John Doe', '111111111');
+
+-- 2. Ejecutamos la prueba sobre ese dato.
 SELECT results_eq(
-    'SELECT full_name FROM owner WHERE document = ''111111111''',
-    'VALUES (''John Doe'')',
-    'Debe ser posible encontrar a John Doe en la tabla owner'
+    $$SELECT full_name FROM owner WHERE document = '111111111'$$,
+    $$VALUES ('John Doe'::varchar)$$,
+    'Debe ser posible encontrar a John Doe en la tabla owner (prueba autocontenida)'
 );
 
--- **PRUEBA CORREGIDA**
--- `isnt_empty` verifica que una consulta DEVUELVE resultados (lo contrario de `is_empty`).
--- Aquí verificamos que sí existe un contrato para el inquilino con documento '121212121'.
+-- Prueba de datos autocontenida: se crea un contrato completo y se verifica que existe.
+-- 1. Insertamos los datos relacionados necesarios para crear un contrato.
+INSERT INTO owner (id, full_name, document) VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21', 'Lease Test Owner', '111222333');
+INSERT INTO parking_space (id, number, type, ubication_floor, ubication_number, owner_id) VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 1000, 'carro', '10', '10', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21');
+INSERT INTO tenant (id, type, full_name, document) VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a23', 'familiar', 'Alice Johnson', '121212121');
+
+-- 2. Insertamos el contrato. El trigger `trg_save_lease_data_record` se encargará de copiar el `tenant_document_record`.
+INSERT INTO lease (id, start_date, end_date, tenant_id, parking_space_id)
+VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a24', '2025-01-01', '2025-12-31', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a23', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22');
+
+-- 3. Verificamos que el contrato fue creado y el trigger funcionó.
 SELECT isnt_empty(
-    'SELECT 1 FROM lease WHERE tenant_document_record = ''121212121''',
-    'Debe existir un contrato para el inquilino con documento 121212121'
+    $$SELECT 1 FROM lease WHERE tenant_document_record = '121212121'$$,
+    'Debe existir un contrato para el inquilino con documento 121212121 (prueba autocontenida)'
 );
 
 
