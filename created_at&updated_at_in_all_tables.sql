@@ -1,3 +1,15 @@
+BEGIN; -- Inicia la transacción
+
+-- Crea el esquema si no existe
+CREATE SCHEMA IF NOT EXISTS ejer1aticlase4;
+
+-- Asigna permisos totales sobre este esquema al usuario
+GRANT ALL ON SCHEMA ejer1aticlase4 TO acelerati;
+
+-- Establece el orden de búsqueda de esquemas para la sesión actual.
+-- Esto hace que no tengas que escribir 'ejer1aticlase4.' en cada objeto.
+SET search_path TO ejer1aticlase4, public;
+
 -- =====================================================================
 -- Script para añadir campos de auditoría (created_at, updated_at)
 -- a todas las tablas de un esquema específico en PostgreSQL.
@@ -66,3 +78,5 @@ BEGIN
     END LOOP;
     RAISE NOTICE '¡Proceso completado para el esquema %!', nombre_esquema;
 END $$;
+
+COMMIT; -- Confirma la transacción SOLO si todo fue exitoso
